@@ -1,4 +1,4 @@
-package goutils
+package go_utils
 
 type Set[T comparable] struct {
 	internalMap map[T]bool
