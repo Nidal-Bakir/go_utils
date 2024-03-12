@@ -1,16 +1,18 @@
 package collectionUtils
 
 type Set[T comparable] struct {
-	internalMap map[T]bool
+	// We are using structs as a value because empty
+	// struct dose not allocate memory
+	internalMap map[T]struct{}
 }
 
-func (s *Set[T]) AddAll(v []T) {
+func (s *Set[T]) AddAll(v ...T) {
 	if s.internalMap == nil {
-		s.internalMap = make(map[T]bool)
+		s.internalMap = make(map[T]struct{})
 	}
 
 	for _, v := range v {
-		s.internalMap[v] = true
+		s.internalMap[v] = struct{}{}
 	}
 }
 
@@ -29,10 +31,10 @@ func (s Set[T]) GetSlice() []T {
 
 func (s *Set[T]) Add(v T) {
 	if s.internalMap == nil {
-		s.internalMap = make(map[T]bool)
+		s.internalMap = make(map[T]struct{})
 	}
 
-	s.internalMap[v] = true
+	s.internalMap[v] = struct{}{}
 }
 
 func (s *Set[T]) Remove(v T) {
@@ -52,5 +54,7 @@ func (s Set[T]) Contains(v T) bool {
 		return false
 	}
 
-	return s.internalMap[v]
+	_, ok := s.internalMap[v]
+
+	return ok
 }
