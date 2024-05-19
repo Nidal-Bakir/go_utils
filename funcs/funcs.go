@@ -1,8 +1,10 @@
 package funcUtils
 
 import (
-    "unicode/utf8"
-    "github.com/shopspring/decimal"
+	"sync"
+	"unicode/utf8"
+
+	"github.com/shopspring/decimal"
 )
 
 // language agnostic function to trim a string str to maxLength
@@ -24,7 +26,7 @@ func TrimString(str string, maxLength int) string {
 }
 
 
-func calcWithFractionRemainder(cost float64, installmentsCount int) (priceWithFR decimal.Decimal, price decimal.Decimal) {
+func CalcWithFractionRemainder(cost float64, installmentsCount int) (priceWithFR decimal.Decimal, price decimal.Decimal) {
 	dCost := decimal.NewFromFloat(cost)
 	if installmentsCount <= 1 {
 		return dCost, dCost
@@ -38,4 +40,31 @@ func calcWithFractionRemainder(cost float64, installmentsCount int) (priceWithFR
 	priceWithFR = dCost.Sub(price.Mul(dInstallmentsCountSub1))
 
 	return priceWithFR, price
+}
+
+func SplitAndGather[I any, O any](in <-chan I, count int, proc func(I) O) []O {
+	out := make(chan O)
+
+	var wg sync.WaitGroup
+	wg.Add(count)
+
+	for range count {
+		go func() {
+			defer wg.Done()
+			for v := range in {
+				out <- proc(v)
+			}
+		}()
+	}
+
+	go func() {
+		wg.Wait()
+		close(out)
+	}()
+
+	result := make([]O, 0)
+	for v := range out {
+		result = append(result, v)
+	}
+	return result
 }
