@@ -1,6 +1,8 @@
 package funcUtils
 
 import (
+	"io"
+	"slices"
 	"sync"
 	"unicode/utf8"
 
@@ -67,4 +69,58 @@ func SplitAndGather[I any, O any](in <-chan I, count int, proc func(I) O) []O {
 		result = append(result, v)
 	}
 	return result
+}
+
+
+func CountLettersFromIReader(r io.Reader, out map[string]int) error {
+	isPossibleRune := func(p []byte) bool {
+		l := len(p)
+		return l > 0 && l <= 3 && utf8.RuneStart(p[0])
+	}
+
+	buf := make([]byte, 2*1024)
+
+	var possibleRune []byte = nil
+
+	for {
+		n, err := r.Read(buf)
+
+		if possibleRune != nil {
+			buf = slices.Concat(possibleRune, buf[:n])
+			n = len(buf)
+			possibleRune = nil
+		}
+
+		totalReadBytes := 0
+		for totalReadBytes < n {
+			bufScope := buf[totalReadBytes:n]
+
+			r, readBytes := utf8.DecodeRune(bufScope)
+
+			if r != utf8.RuneError {
+				totalReadBytes += readBytes
+				out[string(r)]++
+				continue
+			}
+
+			// we have rune error. can this bytes assemble a rune in the next Read?
+			// it is possible that the rune constructed of 4/3/2 bytes and we only
+			// have the first bytes of the rune. We need to get the remaining bytes
+			// in the next Read
+			if isPossibleRune(bufScope) {
+				possibleRune = make([]byte, len(bufScope))
+				copy(possibleRune, bufScope)
+				break
+			}
+
+			return fmt.Errorf("error while decoding a rune: %v", bufScope)
+		}
+
+		if err != nil {
+			if err == io.EOF {
+				return nil
+			}
+			return err
+		}
+	}
 }
